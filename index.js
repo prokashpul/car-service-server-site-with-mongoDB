@@ -98,7 +98,7 @@ async function run() {
 }
 run().catch(console.dir);
 // get data
-app.get("/users", (req, res) => {
+app.get("/", (req, res) => {
   res.send("Hello world");
 });
 

@@ -2,6 +2,7 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const { decode } = require("jsonwebtoken");
 const app = express();
 const port = process.env.PORT || 5000;
 require("dotenv").config();
@@ -9,6 +10,22 @@ require("dotenv").config();
 //middleware
 app.use(cors());
 app.use(express.json());
+
+const verifyJWT = (req, res, next) => {
+  const authHeaders = req.headers.authorization;
+  if (!authHeaders) {
+    return res.status(401).send({ message: "unauthorize access" });
+  }
+  const token = authHeaders.split(" ")[1];
+  jwt.verify(token, process.env.SECRET_TOKEN, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ message: "Forbidden access" });
+    }
+    console.log("decoded", decoded);
+    req.decoded = decoded;
+    next();
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.cbjoh.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
@@ -50,12 +67,17 @@ async function run() {
       res.send(result);
     });
     //order get api
-    app.get("/order", async (req, res) => {
+    app.get("/order", verifyJWT, async (req, res) => {
+      const decodedEmail = req.decoded.email;
       const email = req.query.email;
-      const query = { email: email };
-      const cursor = orderCollection.find(query);
-      const order = await cursor.toArray();
-      res.send(order);
+      if (email === decodedEmail) {
+        const query = { email: email };
+        const cursor = orderCollection.find(query);
+        const order = await cursor.toArray();
+        res.send(order);
+      } else {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
     });
     // order api create
     app.post("/order", async (req, res) => {
